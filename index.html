@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Resume Builder — Live Preview • Export PDF • JSON</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#ffffff; --muted:#6b7280; --accent:#2563eb; --accent2:#ef4444; --text:#0f1724;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;color:var(--text);-webkit-font-smoothing:antialiased}
+  .container{max-width:1200px;margin:20px auto;padding:18px;display:grid;grid-template-columns:420px 1fr;gap:18px}
+  /* Left panel: form */
+  .panel{background:var(--panel);border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(12,20,40,0.06)}
+  h2{margin:0 0 12px 0;font-size:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin-top:10px}
+  input[type="text"], input[type="email"], input[type="tel"], textarea, select {
+    width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e6e9ef;margin-top:6px;font-size:14px;background:#fff;
+  }
+  textarea{min-height:70px;resize:vertical}
+  .row{display:flex;gap:8px}
+  .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid #e6e9ef;color:var(--text)}
+  .small{padding:6px 10px;font-size:13px}
+  .muted{color:var(--muted);font-size:13px}
+  .section{margin-top:12px;border-top:1px dashed #eef2f7;padding-top:12px}
+  .flex-between{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+  /* Dynamic list cards */
+  .entry{background:#fbfdff;border-radius:8px;padding:8px;margin-top:10px;border:1px solid #eef2f7}
+  .entry .entry-row{display:flex;gap:8px;align-items:center}
+  .entry input, .entry textarea{font-size:13px;padding:8px;border-radius:6px;border:1px solid #e6e9ef}
+
+  /* skills tag input */
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{background:#eef2ff;padding:6px 8px;border-radius:999px;font-size:13px;color:var(--accent);display:flex;gap:8px;align-items:center}
+  .tag button{background:transparent;border:none;color:var(--accent);cursor:pointer;font-weight:700}
+
+  /* RIGHT: preview area */
+  .preview-wrap{padding:18px;display:flex;flex-direction:column;gap:14px}
+  .top-controls{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+  .template-switch{display:flex;gap:8px}
+  .preview{background:#fff;border-radius:10px;padding:22px;box-shadow:0 12px 40px rgba(12,20,40,0.06);overflow:hidden}
+  /* classic template */
+  .resume.classic{font-family:Merriweather, serif;color:#111}
+  .classic .header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #f1f5f9;padding-bottom:12px;margin-bottom:12px}
+  .classic .name{font-size:28px;font-weight:700}
+  .classic .title{color:var(--muted);font-weight:700}
+  /* modern template */
+  .resume.modern{font-family:Inter, sans-serif}
+  .modern .header{display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(90deg, rgba(37,99,235,0.07), rgba(239,68,68,0.03));padding:12px;border-radius:8px;margin-bottom:12px}
+  .modern .left h1{margin:0;font-size:22px}
+  .modern .left p{margin:4px 0;color:var(--muted)}
+  /* sections common */
+  .section-title{font-weight:700;color:var(--accent);font-size:14px;margin-bottom:8px}
+  .item{margin-bottom:10px}
+  .item .meta{color:var(--muted);font-size:13px}
+
+  /* print style (PDF) */
+  @media print{
+    body{background:#fff}
+    .container{max-width:900px;margin:0;padding:0;grid-template-columns:1fr}
+    header, .top-controls, .btn, .cat{display:none}
+    .panel{display:none}
+    .preview{box-shadow:none;border:none;padding:18px}
+  }
+
+  /* responsive */
+  @media (max-width:1000px){
+    .container{grid-template-columns:1fr; padding:12px}
+    .panel{order:2}
+    .preview-wrap{order:1}
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- LEFT: Form -->
+  <div class="panel">
+    <h2>Resume Builder</h2>
+    <div class="muted">Fill the form — preview updates live.</div>
+
+    <label>Full name</label>
+    <input id="input-name" type="text" placeholder="Jane Doe (required)" />
+
+    <label>Professional title</label>
+    <input id="input-title" type="text" placeholder="e.g. Product Designer" />
+
+    <label>Contact (email)</label>
+    <input id="input-email" type="email" placeholder="jane@example.com" />
+
+    <label>Phone</label>
+    <input id="input-phone" type="tel" placeholder="+91 98765 43210" />
+
+    <label>Website / Portfolio</label>
+    <input id="input-website" type="text" placeholder="https://your-site.com" />
+
+    <label>Summary</label>
+    <textarea id="input-summary" placeholder="Short profile summary..."></textarea>
+
+    <!-- SKILLS -->
+    <div class="section">
+      <div class="flex-between">
+        <h3 style="margin:0;font-size:15px">Skills</h3>
+        <div>
+          <input id="skill-input" type="text" placeholder="Type skill & press Enter" style="padding:6px 8px;border-radius:8px;border:1px solid #e6e9ef" />
+        </div>
+      </div>
+      <div id="skills" class="tags" aria-live="polite"></div>
+    </div>
+
+    <!-- EXPERIENCE -->
+    <div class="section">
+      <div class="flex-between">
+        <h3 style="margin:0;font-size:15px">Experience</h3>
+        <button class="btn small" id="add-experience">Add Experience</button>
+      </div>
+      <div id="experiences"></div>
+    </div>
+
+    <!-- EDUCATION -->
+    <div class="section">
+      <div class="flex-between">
+        <h3 style="margin:0;font-size:15px">Education</h3>
+        <button class="btn small" id="add-education">Add Education</button>
+      </div>
+      <div id="educations"></div>
+    </div>
+
+    <!-- PROJECTS -->
+    <div class="section">
+      <h3 style="margin:0;font-size:15px">Projects</h3>
+      <label>Project (one)</label>
+      <input id="input-project-title" type="text" placeholder="Project title" />
+      <label>Project description</label>
+      <textarea id="input-project-desc" placeholder="Short project description"></textarea>
+    </div>
+
+    <!-- SOCIALS & ACTIONS -->
+    <div class="section">
+      <h3 style="margin:0;font-size:15px">Social Links</h3>
+      <label>LinkedIn</label><input id="input-linkedin" type="text" placeholder="linkedin.com/in/yourname" />
+      <label>GitHub / Portfolio</label><input id="input-github" type="text" placeholder="github.com/yourname" />
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn" id="btn-download-json">Download JSON</button>
+      <button class="btn ghost" id="btn-upload-json">Upload JSON</button>
+      <input type="file" id="file-json" accept="application/json" style="display:none">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn" id="btn-copy">Copy to clipboard</button>
+      <button class="btn ghost" id="btn-reset">Reset</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="preview-wrap">
+    <div class="top-controls">
+      <div class="template-switch">
+        <label class="muted" style="align-self:center;margin-right:6px">Template</label>
+        <button class="btn small" id="tpl-classic">Classic</button>
+        <button class="btn ghost small" id="tpl-modern">Modern</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-left:12px">
+        <button class="btn small" id="btn-print">Export / Print (PDF)</button>
+      </div>
+    </div>
+
+    <div id="preview" class="preview resume classic" role="region" aria-live="polite">
+      <!-- Rendered resume will appear here -->
+      <div id="preview-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ========== Data Model ========== */
+const state = {
+  name: "Jane Doe",
+  title: "Product Designer",
+  email: "jane@example.com",
+  phone: "+91 98765 43210",
+  website: "https://your-portfolio.com",
+  summary: "Creative product designer with 5+ years designing delightful web and mobile experiences.",
+  skills: ["UX", "UI", "Figma", "Prototyping"],
+  experiences: [
+    { id: cryptoRandomId(), company: "Acme Corp", role: "Senior Product Designer", start:"2021", end:"Present", desc:"Led mobile redesign, improved retention by 18%."}
+  ],
+  educations: [
+    { id: cryptoRandomId(), school: "Institute of Design", degree:"B.Des - Interaction Design", start:"2014", end:"2018", desc:"Graduated with honors."}
+  ],
+  project: { title: "Stellar App", desc:"End-to-end product: research → design → prototype." },
+  linkedin: "",
+  github: "",
+  template: "classic"
+};
+
+/* ========== Utilities ========== */
+function cryptoRandomId(){ return 'id-' + Math.random().toString(36).slice(2,9); }
+function $(id){ return document.getElementById(id); }
+
+/* ========== Render / Bind ========== */
+function bindInputs(){
+  // basic inputs
+  ['name','title','summary','email','phone','website','linkedin','github'].forEach(key=>{
+    const el = $('input-' + key) || $('input-' + key);
+  });
+
+  // map inputs to state
+  $('input-name').value = state.name;
+  $('input-title').value = state.title;
+  $('input-email').value = state.email;
+  $('input-phone').value = state.phone;
+  $('input-website').value = state.website;
+  $('input-summary').value = state.summary;
+  $('input-linkedin').value = state.linkedin;
+  $('input-github').value = state.github;
+  $('input-project-title').value = state.project.title;
+  $('input-project-desc').value = state.project.desc;
+
+  // listeners
+  $('input-name').addEventListener('input', e=> { state.name = e.target.value; renderPreview(); });
+  $('input-title').addEventListener('input', e=> { state.title = e.target.value; renderPreview(); });
+  $('input-email').addEventListener('input', e=> { state.email = e.target.value; renderPreview(); });
+  $('input-phone').addEventListener('input', e=> { state.phone = e.target.value; renderPreview(); });
+  $('input-website').addEventListener('input', e=> { state.website = e.target.value; renderPreview(); });
+  $('input-summary').addEventListener('input', e=> { state.summary = e.target.value; renderPreview(); });
+  $('input-linkedin').addEventListener('input', e=> { state.linkedin = e.target.value; renderPreview(); });
+  $('input-github').addEventListener('input', e=> { state.github = e.target.value; renderPreview(); });
+  $('input-project-title').addEventListener('input', e=> { state.project.title = e.target.value; renderPreview(); });
+  $('input-project-desc').addEventListener('input', e=> { state.project.desc = e.target.value; renderPreview(); });
+}
+
+/* ========== Skills Tag Input ========== */
+const skillInput = $('skill-input');
+const skillsWrap = $('skills');
+function renderSkills(){
+  skillsWrap.innerHTML = '';
+  state.skills.forEach((s, idx)=>{
+    const tag = document.createElement('div'); tag.className = 'tag';
+    tag.innerHTML = `${s} <button aria-label="remove skill" data-idx="${idx}">✕</button>`;
+    skillsWrap.appendChild(tag);
+  });
+  // remove handler
+  skillsWrap.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const idx = Number(e.target.dataset.idx);
+      state.skills.splice(idx,1); renderSkills(); renderPreview();
+    });
+  });
+}
+skillInput.addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const v = skillInput.value.trim();
+    if(v && !state.skills.includes(v)){ state.skills.push(v); skillInput.value=''; renderSkills(); renderPreview(); }
+  }
+});
+
+/* ========== Experience & Education dynamic lists ========== */
+const expContainer = $('experiences');
+const eduContainer = $('educations');
+
+function renderExperiences(){
+  expContainer.innerHTML = '';
+  state.experiences.forEach((exp, i)=>{
+    const div = document.createElement('div'); div.className='entry';
+    div.innerHTML = `
+      <div class="entry-row">
+        <input placeholder="Company" value="${escapeHtml(exp.company)}" data-field="company" data-id="${exp.id}">
+        <input placeholder="Role" value="${escapeHtml(exp.role)}" data-field="role" data-id="${exp.id}">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input style="width:120px" placeholder="Start" value="${escapeHtml(exp.start)}" data-field="start" data-id="${exp.id}">
+        <input style="width:120px" placeholder="End or Present" value="${escapeHtml(exp.end)}" data-field="end" data-id="${exp.id}">
+        <button class="btn ghost small" data-action="remove-exp" data-id="${exp.id}">Remove</button>
+      </div>
+      <textarea placeholder="Description" data-field="desc" data-id="${exp.id}">${escapeHtml(exp.desc)}</textarea>
+    `;
+    expContainer.appendChild(div);
+  });
+  // attach change handlers
+  expContainer.querySelectorAll('[data-field]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const id = e.target.dataset.id; const field = e.target.dataset.field;
+      const idx = state.experiences.findIndex(x=>x.id===id);
+      if(idx>-1){ state.experiences[idx][field] = e.target.value; renderPreview(); }
+    });
+  });
+  expContainer.querySelectorAll('[data-action="remove-exp"]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const id = e.target.dataset.id;
+      state.experiences = state.experiences.filter(x=>x.id!==id); renderExperiences(); renderPreview();
+    });
+  });
+}
+
+function renderEducations(){
+  eduContainer.innerHTML = '';
+  state.educations.forEach((ed)=>{
+    const div = document.createElement('div'); div.className='entry';
+    div.innerHTML = `
+      <div class="entry-row">
+        <input placeholder="School / University" value="${escapeHtml(ed.school)}" data-field="school" data-id="${ed.id}">
+        <input placeholder="Degree" value="${escapeHtml(ed.degree)}" data-field="degree" data-id="${ed.id}">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input style="width:120px" placeholder="Start" value="${escapeHtml(ed.start)}" data-field="start" data-id="${ed.id}">
+        <input style="width:120px" placeholder="End" value="${escapeHtml(ed.end)}" data-field="end" data-id="${ed.id}">
+        <button class="btn ghost small" data-action="remove-edu" data-id="${ed.id}">Remove</button>
+      </div>
+      <textarea placeholder="Notes (optional)" data-field="desc" data-id="${ed.id}">${escapeHtml(ed.desc)}</textarea>
+    `;
+    eduContainer.appendChild(div);
+  });
+  // handlers
+  eduContainer.querySelectorAll('[data-field]').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const id = e.target.dataset.id; const field = e.target.dataset.field;
+      const idx = state.educations.findIndex(x=>x.id===id);
+      if(idx>-1){ state.educations[idx][field] = e.target.value; renderPreview(); }
+    });
+  });
+  eduContainer.querySelectorAll('[data-action="remove-edu"]').forEach(b=>{
+    b.addEventListener('click', e=>{
+      const id = e.target.dataset.id;
+      state.educations = state.educations.filter(x=>x.id!==id); renderEducations(); renderPreview();
+    });
+  });
+}
+
+$('add-experience').addEventListener('click', ()=>{
+  state.experiences.push({ id: cryptoRandomId(), company:'', role:'', start:'', end:'', desc:''});
+  renderExperiences();
+});
+$('add-education').addEventListener('click', ()=>{
+  state.educations.push({ id: cryptoRandomId(), school:'', degree:'', start:'', end:'', desc:''});
+  renderEducations();
+});
+
+/* ========== Preview rendering ========== */
+const preview = $('preview-content');
+function renderPreview(){
+  // choose template wrapper
+  const wrapper = document.getElementById('preview');
+  wrapper.className = 'preview resume ' + state.template;
+
+  // build HTML
+  const skillsHtml = state.skills.map(s=>`<span style="display:inline-block;background:#eef2ff;color:#0b3b82;padding:6px 8px;border-radius:999px;margin-right:6px;margin-bottom:6px;font-weight:600;font-size:13px">${escapeHtml(s)}</span>`).join('');
+  const expHtml = state.experiences.map(e=>`
+    <div class="item">
+      <div style="display:flex;justify-content:space-between"><strong>${escapeHtml(e.role)}</strong><span class="meta">${escapeHtml(e.start)} — ${escapeHtml(e.end)}</span></div>
+      <div class="meta">${escapeHtml(e.company)}</div>
+      <div style="margin-top:6px">${escapeHtml(e.desc)}</div>
+    </div>
+  `).join('');
+  const eduHtml = state.educations.map(ed=>`
+    <div class="item">
+      <div style="display:flex;justify-content:space-between"><strong>${escapeHtml(ed.degree)}</strong><span class="meta">${escapeHtml(ed.start)} — ${escapeHtml(ed.end)}</span></div>
+      <div class="meta">${escapeHtml(ed.school)}</div>
+      <div style="margin-top:6px">${escapeHtml(ed.desc)}</div>
+    </div>
+  `).join('');
+
+  // templates: classic and modern
+  let html = '';
+  if(state.template === 'classic'){
+    html = `
+      <div class="header">
+        <div>
+          <div class="name">${escapeHtml(state.name || '')}</div>
+          <div class="title">${escapeHtml(state.title || '')}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:18px">
+        <div style="flex:2">
+          <div class="section">
+            <div class="section-title">Summary</div>
+            <div>${escapeHtml(state.summary)}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">Experience</div>
+            ${expHtml || '<div class="muted">No experience added.</div>'}
+          </div>
+          <div class="section">
+            <div class="section-title">Projects</div>
+            <div class="item"><strong>${escapeHtml(state.project.title)}</strong><div style="margin-top:6px">${escapeHtml(state.project.desc)}</div></div>
+          </div>
+        </div>
+        <div style="flex:1;padding-left:12px;border-left:1px solid #f1f5f9">
+          <div class="section">
+            <div class="section-title">Contact</div>
+            <div class="item"><div class="meta">Email</div>${escapeHtml(state.email)}</div>
+            <div class="item"><div class="meta">Phone</div>${escapeHtml(state.phone)}</div>
+            <div class="item"><div class="meta">Website</div>${escapeHtml(state.website)}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">Skills</div>
+            <div>${skillsHtml || '<span class="muted">No skills added.</span>'}</div>
+          </div>
+          <div class="section">
+            <div class="section-title">Education</div>
+            ${eduHtml || '<div class="muted">No education added.</div>'}
+          </div>
+          <div class="section">
+            <div class="section-title">Social</div>
+            <div>${escapeHtml(state.linkedin)}<br>${escapeHtml(state.github)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // modern
+    html = `
+      <div class="header">
+        <div class="left">
+          <h1 style="margin:0;font-size:22px">${escapeHtml(state.name)}</h1>
+          <p style="margin:6px 0 0;color:var(--muted)">${escapeHtml(state.title)}</p>
+        </div>
+        <div class="right" style="text-align:right">
+          <div style="font-weight:700">${escapeHtml(state.email)}</div>
+          <div class="muted" style="margin-top:4px">${escapeHtml(state.phone)}</div>
+          <div class="muted" style="margin-top:6px">${escapeHtml(state.website)}</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section">
+          <div class="section-title">Summary</div>
+          <div>${escapeHtml(state.summary)}</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px">
+          <div>
+            <div class="section">
+              <div class="section-title">Experience</div>
+              ${expHtml || '<div class="muted">No experience added.</div>'}
+            </div>
+
+            <div class="section">
+              <div class="section-title">Projects</div>
+              <div class="item"><strong>${escapeHtml(state.project.title)}</strong><div style="margin-top:6px">${escapeHtml(state.project.desc)}</div></div>
+            </div>
+          </div>
+
+          <aside>
+            <div class="section">
+              <div class="section-title">Skills</div>
+              <div>${skillsHtml || '<span class="muted">No skills added.</span>'}</div>
+            </div>
+            <div class="section">
+              <div class="section-title">Education</div>
+              ${eduHtml || '<div class="muted">No education added.</div>'}
+            </div>
+            <div class="section">
+              <div class="section-title">Social</div>
+              <div class="muted">${escapeHtml(state.linkedin)}<br>${escapeHtml(state.github)}</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    `;
+  }
+
+  preview.innerHTML = html;
+}
+
+/* ========= Helpers: JSON export/import, copy, print ========= */
+$('btn-download-json').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'resume.json'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+$('btn-upload-json').addEventListener('click', ()=> $('file-json').click());
+$('file-json').addEventListener('change', (e)=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=> {
+    try{
+      const data = JSON.parse(reader.result);
+      Object.assign(state, data);
+      // ensure arrays exist
+      state.skills = state.skills || [];
+      state.experiences = state.experiences || [];
+      state.educations = state.educations || [];
+      state.project = state.project || {title:'',desc:''};
+      renderAll();
+    }catch(err){ alert('Invalid JSON'); }
+  };
+  reader.readAsText(f);
+});
+
+$('btn-copy').addEventListener('click', async ()=>{
+  try{
+    await navigator.clipboard.writeText(JSON.stringify(state,null,2));
+    alert('Resume JSON copied to clipboard');
+  }catch(e){ alert('Copy failed'); }
+});
+
+$('btn-reset').addEventListener('click', ()=>{
+  if(!confirm('Reset all fields to default example?')) return;
+  // reset to default example
+  state.name = 'Jane Doe'; state.title='Product Designer'; state.email='jane@example.com';
+  state.phone='+91 98765 43210'; state.website='https://your-portfolio.com';
+  state.summary='Creative product designer with 5+ years designing delightful experiences.';
+  state.skills=['UX','UI','Figma'];
+  state.experiences = [{ id: cryptoRandomId(), company:'Acme Corp', role:'Senior Product Designer', start:'2021', end:'Present', desc:'Led mobile redesign.'}];
+  state.educations = [{ id: cryptoRandomId(), school:'Institute of Design', degree:'B.Des', start:'2014', end:'2018', desc:'Graduated with honors.'}];
+  state.project = { title:'Stellar App', desc:'End-to-end product: research → design → prototype.'};
+  state.linkedin='linkedin.com/in/janedoe'; state.github='github.com/janedoe';
+  renderAll();
+});
+
+/* Print / Export to PDF (user will choose Save as PDF) */
+$('btn-print').addEventListener('click', ()=>{
+  window.print();
+});
+
+/* Template switching */
+$('tpl-classic').addEventListener('click', ()=>{
+  state.template = 'classic';
+  $('tpl-classic').classList.add('btn'); $('tpl-classic').classList.remove('ghost');
+  $('tpl-modern').classList.add('btn','ghost'); $('tpl-modern').classList.remove('btn');
+  renderPreview();
+});
+$('tpl-modern').addEventListener('click', ()=>{
+  state.template = 'modern';
+  $('tpl-modern').classList.add('btn'); $('tpl-modern').classList.remove('ghost');
+  $('tpl-classic').classList.add('btn','ghost'); $('tpl-classic').classList.remove('btn');
+  renderPreview();
+});
+
+/* Initialize UI */
+function renderAll(){
+  renderSkills();
+  renderExperiences();
+  renderEducations();
+  renderPreview();
+}
+bindInputs();
+renderAll();
+
+/* Escaping for safety in previews */
+function escapeHtml(str){
+  if(!str && str!==0) return '';
+  return String(str).replace(/[&<>"]/g, (s)=>{
+    if(s==='&') return '&amp;';
+    if(s==='<') return '&lt;';
+    if(s==='>') return '&gt;';
+    if(s==='"') return '&quot;';
+    return s;
+  }).replace(/\n/g,'<br>');
+}
+</script>
+</body>
+</html>
